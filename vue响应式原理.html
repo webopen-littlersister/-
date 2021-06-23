@@ -1,0 +1,105 @@
+<script>
+// 数组重写
+const orginalProto = Array.prototype
+const arrayProto = Object.create(orginalProto)//基于orginalProto 创建新对象,对象原型上有orginalProto的数组方法
+//定义数组 可调用的数组方法
+const methodsToPatch = [ 
+'push',
+    'pop',
+    'shift',
+    'unshift',
+    'splice',
+    'sort',
+    'reverse'
+]
+//遍历数组
+methodsToPatch.forEach(method=>{
+    //将数组中的方法 保存到arrayProto对象上
+    arrayProto[method] = function(){
+        //调用方法就更新视图 
+        updateView()
+        //继承保持orginalProto上的数组方法功能
+        orginalProto[method].apply(this,arguments)
+    }
+})
+
+// 1. 定义模型
+let  data = {
+    name : "小明",
+    sex : "男",
+    like : ["吃饭","睡觉","打豆豆"],
+    other : {a:1,b:2,c:3}
+}
+// 2. forin遍历对象，Object.defineProperty挨个进行数据劫持 
+
+// 3. 将刚才写的代码封装起来方便后期使用  推荐方法名 observer 
+function observer(target){
+    for(let key in target){
+    let  value = target[key]
+
+// 4. 递归劫持N层：循环中直接调用observer递归监控每个值，但是observer 入口判断避免非复杂类型监控
+//判断 如果是数组或者对象,就递归
+    //如果是简单数据类型 或者 null 就直接return
+    if(typeof target != 'object' || target == null) return 
+
+ // 5. 其他1：数组重写
+ //判断 如果是数组 就返回 并赋值新的原型
+    if(Array.isArray(target)){
+         target._proto_ = arrayProto
+     return
+    }   
+    defineReactive(target,key,value)
+}  
+}
+ // 6. 将数据进一步封装  将forin里面的代码  全部放到defineReactive里面
+ function defineReactive(target,key,value){
+    observer(value)
+
+    Object.defineProperty(target,key,{
+        get(){
+            console.log('get')
+            return value 
+        },
+        set(newDate){
+            value = newDate
+            console.log('set')
+            updateView()
+        }
+})
+ }
+
+// 7, 其他2：增加额外API     $forceUpdate、$set(target, key, value)  
+//定义$set
+function $set(target,key,value){
+    defineReactive(target,key,value)
+    //由于希望更改后就更新
+    updateView()
+}
+
+//定义 $forceUpdate
+function  $forceUpdate(){
+    updateView()
+}
+
+//首次调用
+observer(data) 
+function updateView(){
+    console.log('更新啦````',data);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script>
